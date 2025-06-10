@@ -24,6 +24,9 @@ public class SortReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
 
             // 输出最终结果：单词 \t 次数
             context.write(new Text(word), new IntWritable(count));
+        } else {
+            // 如果解析失败，直接输出原始数据进行调试
+            context.write(key, new IntWritable(0));
         }
     }
 }

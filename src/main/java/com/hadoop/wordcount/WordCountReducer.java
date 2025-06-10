@@ -26,8 +26,8 @@ public class WordCountReducer extends Reducer<Text, IntWritable, Text, IntWritab
 
         result.set(sum);
 
-        // 输出格式：单词:次数
+        // 输出格式：单词:次数 作为key，1作为value（因为每个单词只输出一次）
         Text outputKey = new Text(key.toString() + ":" + sum);
-        context.write(outputKey, result);
+        context.write(outputKey, new IntWritable(1));
     }
 }

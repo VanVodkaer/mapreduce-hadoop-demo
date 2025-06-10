@@ -20,15 +20,23 @@ public class SortMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
     public void map(LongWritable key, Text value, Context context)
             throws IOException, InterruptedException {
 
-        // 输入格式：单词:次数 \t 次数
+        // 输入格式：单词:次数:次数 \t 次数
+        // 或者：单词:次数 \t 次数
         String[] parts = value.toString().split("\t");
         if (parts.length == 2) {
-            String wordWithCount = parts[0]; // "单词:次数"
-            int count = Integer.parseInt(parts[1]);
+            String wordWithCount = parts[0].trim(); // "单词:次数:次数" 或 "单词:次数"
 
-            outputKey.set(wordWithCount);
-            outputValue.set(count);
-            context.write(outputKey, outputValue);
+            // 处理重复的次数格式（如 "hello:2:2"）
+            String[] keyParts = wordWithCount.split(":");
+            if (keyParts.length >= 2) {
+                String word = keyParts[0];
+                int count = Integer.parseInt(keyParts[1]);
+
+                // 重新构造正确格式的key：单词:次数
+                outputKey.set(word + ":" + count);
+                outputValue.set(count);
+                context.write(outputKey, outputValue);
+            }
         }
     }
 }

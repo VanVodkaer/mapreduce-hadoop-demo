@@ -11,21 +11,33 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 /**
- * WordCount排序程序的主驱动类
- * 功能：配置并执行两阶段的MapReduce作业
+ * WordCount排序程序的主驱动类 - 简化版
+ * 使用默认Hadoop配置，避免手动设置连接参数
  */
 public class WordCountSortDriver {
 
     public static void main(String[] args) throws Exception {
 
-        if (args.length != 3) {
-            System.err.println("Usage: WordCountSort <input path> <temp path> <output path>");
+        if (args.length != 4) {
+            System.err.println(
+                    "Usage: hadoop jar <jar-file> com.hadoop.wordcount.WordCountSortDriver <input path> <temp path> <output path>");
             System.exit(-1);
         }
 
-        Configuration conf = new Configuration();
+        String inputPath = args[1].trim();
+        String tempPath = args[2].trim();
+        String outputPath = args[3].trim();
 
-        // 第一阶段：WordCount统计
+        System.out.println("Input path: " + inputPath);
+        System.out.println("Temp path: " + tempPath);
+        System.out.println("Output path: " + outputPath);
+
+        // 使用正确的HDFS配置 - 从core-site.xml可以看出NameNode在9820端口
+        Configuration conf = new Configuration();
+        // 虽然配置文件中已经设置了，但为了确保连接正确，显式设置
+        conf.set("fs.defaultFS", "hdfs://hadoop81:9820");
+
+        System.out.println("Starting Job 1: Word Count");
         Job job1 = Job.getInstance(conf, "word count");
         job1.setJarByClass(WordCountSortDriver.class);
 
@@ -39,8 +51,8 @@ public class WordCountSortDriver {
         job1.setInputFormatClass(TextInputFormat.class);
         job1.setOutputFormatClass(TextOutputFormat.class);
 
-        FileInputFormat.addInputPath(job1, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job1, new Path(args[1]));
+        FileInputFormat.addInputPath(job1, new Path(inputPath));
+        FileOutputFormat.setOutputPath(job1, new Path(tempPath));
 
         // 等待第一个作业完成
         boolean job1Success = job1.waitForCompletion(true);
@@ -50,7 +62,10 @@ public class WordCountSortDriver {
             System.exit(1);
         }
 
+        System.out.println("Job 1 completed successfully!");
+
         // 第二阶段：排序
+        System.out.println("Starting Job 2: Sort");
         Job job2 = Job.getInstance(conf, "word count sort");
         job2.setJarByClass(WordCountSortDriver.class);
 
@@ -66,10 +81,19 @@ public class WordCountSortDriver {
         job2.setInputFormatClass(TextInputFormat.class);
         job2.setOutputFormatClass(TextOutputFormat.class);
 
-        FileInputFormat.addInputPath(job2, new Path(args[1]));
-        FileOutputFormat.setOutputPath(job2, new Path(args[2]));
+        FileInputFormat.addInputPath(job2, new Path(tempPath));
+        FileOutputFormat.setOutputPath(job2, new Path(outputPath));
 
         // 等待第二个作业完成并退出
-        System.exit(job2.waitForCompletion(true) ? 0 : 1);
+        boolean job2Success = job2.waitForCompletion(true);
+
+        if (job2Success) {
+            System.out.println("Job 2 completed successfully!");
+            System.out.println("All jobs completed. Results are in: " + outputPath);
+        } else {
+            System.err.println("Job2 (Sort) failed!");
+        }
+
+        System.exit(job2Success ? 0 : 1);
     }
 }
